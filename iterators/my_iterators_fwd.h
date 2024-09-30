@@ -21,6 +21,9 @@ namespace data_struct
 
     template <typename T, typename Impl, typename Mut>
     class BidirectIterTemplate;
+
+    template <typename T, typename Impl, typename Mut>
+    class RandomIterTemplate;
 }
 
 #endif
