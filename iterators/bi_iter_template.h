@@ -1,5 +1,5 @@
-#ifndef F_ITER_TEMPLATE_H_GUARD
-#define F_ITER_TEMPLATE_H_GUARD
+#ifndef BE_ITER_TEMPLATE_H_GUARD
+#define BE_ITER_TEMPLATE_H_GUARD
 
 #include "f_iter_template.h"
 
@@ -25,10 +25,9 @@ namespace data_struct
     public:
         using Base::impl;
 
-        using Base::swap;
         using Base::operator*;
         using Base::operator->;
-        using base::operator++;
+        using Base::operator++;
 
     public:
         BidirectIterTemplate() noexcept = default;
@@ -38,7 +37,7 @@ namespace data_struct
         {}
 
         template <typename Mut_>
-        BidirectIterTemplate (BidirectIterTemplate<T, Impl, Mut_> it) noexcept 
+        BidirectIterTemplate (BidirectIterTemplate<T, Impl, Mut_> const& it) noexcept 
             : Base (it)
         {}
 

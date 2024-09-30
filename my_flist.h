@@ -111,7 +111,7 @@ namespace data_struct
         }
 
         iterator prev_begin() noexcept {
-            return IterImpl {const_cast<Head*> (&prevFirst)};
+            return IterImpl {&prevFirst};
         }
 
         const_iterator prev_begin() const noexcept {

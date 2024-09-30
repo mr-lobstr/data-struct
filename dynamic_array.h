@@ -113,14 +113,6 @@ namespace data_struct
             return begin()[ind];
         }
 
-        T& front () noexcept {
-            return *begin();
-        }
-
-        T const& front () const noexcept {
-            return *begin();
-        }
-
         T& back () noexcept {
             return *--end();
         }

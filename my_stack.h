@@ -12,20 +12,16 @@ namespace data_struct
         using const_iterator = typename DynamicArray<T>::const_iterator;
 
     public:
-        const_iterator cbegin() const noexcept {
+        const_iterator begin() const noexcept {
             return stackImpl.cbegin();
         }
 
-        const_iterator cend() const noexcept {
-            return stackImpl.end();
+        const_iterator end() const noexcept {
+            return stackImpl.cend();
         }
 
         void push (T const& value) {
             stackImpl.push_back (value);
-        }
-
-        T& top() noexcept {
-            return stackImpl.back();
         }
 
         T const& top() const noexcept {

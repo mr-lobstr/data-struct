@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <iterator>
+#include <utility>
 #include "../my_algorithm.h"
 
 namespace data_struct
@@ -12,7 +13,25 @@ namespace data_struct
 
 
     template <typename Iter>
-    struct IterOutTypes;
+    struct IterTraits {
+        using Tag        = typename Iter::iterator_tag;
+        using Difference = typename Iter::difference_type;
+
+        using Value     = typename Iter::value_type;
+        using Reference = typename Iter::reference;
+        using Pointer   = typename Iter::pointer; 
+    };
+
+
+    template <typename T>
+    struct IterTraits<T*> {
+        using Tag        = std::random_access_iterator_tag;
+        using Difference = std::ptrdiff_t;
+
+        using Value     = std::remove_cv_t<T>;
+        using Reference = T&;
+        using Pointer   = T*; 
+    };
 
 
     template <typename T, typename Impl, typename Mut>
@@ -21,6 +40,7 @@ namespace data_struct
 
     template <typename T, typename Impl, typename Mut>
     class BidirectIterTemplate;
+
 
     template <typename T, typename Impl, typename Mut>
     class RandomIterTemplate;

@@ -8,14 +8,14 @@ namespace data_struct
     template <typename T, typename Impl, typename Mut>
     class ForwardIterTemplate {
         using Self = ForwardIterTemplate;
-        using Types = IterOutTypes<Self>;
+        using Types = IterTraits<Self>;
 
         friend typename Impl::Container;
-        friend class ForwardIterTemplate<T, Impl, Const_tag>;
+        friend ForwardIterTemplate<T, Impl, Const_tag>;;
 
     public:
-        using iterator_tag    = std::forward_iterator_tag;
-        using difference_type = void;
+        using iterator_tag    = typename Types::Tag;
+        using difference_type = typename Types::Difference;
 
         using value_type = typename Types::Value;
         using reference  = typename Types::Reference;
@@ -23,13 +23,25 @@ namespace data_struct
 
     public:
         ForwardIterTemplate() noexcept = default;
+        ~ForwardIterTemplate() noexcept = default;
+
+        ForwardIterTemplate(Self const&) noexcept = default;
+        Self& operator= (Self const&) noexcept = default;
+
+        ForwardIterTemplate(Self&& rhs) noexcept
+            impl (std::exchange (rhs.impl, Impl{}))
+        {}
+
+        Self& operator= (Self&& rhs) noexcept {
+            impl = std::exchange (rhs.impl, Impl{});
+        }
 
         ForwardIterTemplate (Impl impl_) noexcept
             : impl (impl_)
         {}
 
         template <typename Mut_, typename = std::enable_if_t<std::is_same_v<Mut_, Mutable_tag>>>
-        ForwardIterTemplate (ForwardIterTemplate<T, Impl, Mut_> it) noexcept 
+        ForwardIterTemplate (ForwardIterTemplate<T, Impl, Mut_> const& it) noexcept 
             : impl (it.impl)
         {}
 
@@ -41,10 +53,6 @@ namespace data_struct
         friend
         bool operator!= (Self const& lhs, Self const& rhs) noexcept {
             return not (lhs == rhs);
-        }
-
-        void swap(Self& rhs) noexcept {
-            std::swap (impl, rhs.impl);
         }
 
         reference operator*() const noexcept {
@@ -66,15 +74,18 @@ namespace data_struct
             return tmp;
         }
 
-    private:
+    protected:
         Impl impl{};
     };
 
 
     template <typename T, typename Impl>
-    struct IterOutTypes<
+    struct IterTraits<
         ForwardIterTemplate<T, Impl, Mutable_tag>
     > {
+        using Tag        = std::forward_iterator_tag;
+        using Difference = void;
+
         using Value     = T;
         using Reference = T&;
         using Pointer   = T*;
@@ -82,9 +93,12 @@ namespace data_struct
 
 
     template <typename T, typename Impl>
-    struct IterOutTypes<
+    struct IterTraits<
         ForwardIterTemplate<T, Impl, Const_tag>
     > {
+        using Tag        = std::forward_iterator_tag;
+        using Difference = void;
+
         using Value     = T;
         using Reference = T const&;
         using Pointer   = T const*;
