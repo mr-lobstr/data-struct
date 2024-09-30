@@ -10,11 +10,9 @@ namespace data_struct
 {
     template <typename T>
     class DynamicArray {  
-        using IterImpl = PtrIter<T, DynamicArray>;
-
     public:
-        using iterator       = RandomIterTemplate<T, IterImpl, Mutable_tag>;
-        using const_iterator = RandomIterTemplate<T, IterImpl, Const_tag>;
+        using iterator       = T*;
+        using const_iterator = T const*;
 
     public:
         DynamicArray() noexcept = default;
@@ -30,7 +28,7 @@ namespace data_struct
 
         DynamicArray (std::size_t count, T const& value = T()) {
             mem_alloc_and_data_init (count, count);
-            range_init (data.begin, data.avail, value);
+            range_init (begin(), end(), value);
         }
 
         DynamicArray& operator= (DynamicArray&& rhs) noexcept {
@@ -51,15 +49,15 @@ namespace data_struct
 
         ~DynamicArray() noexcept {
             resize(0);
-            mem_free (data.begin);
+            mem_free (begin());
         }
 
         iterator begin() noexcept {
-            return IterImpl {data.begin};
+            return data.begin;
         }
 
         const_iterator cbegin() const noexcept {
-            return IterImpl {const_cast<int*> (data.begin)};
+            return data.begin;
         }
 
         const_iterator begin() const noexcept {
@@ -67,11 +65,11 @@ namespace data_struct
         }
 
         iterator end() noexcept {
-            return IterImpl {data.avail};
+            return data.end;
         }
 
         const_iterator cend() const noexcept {
-            return IterImpl {const_cast<int*> (data.avail)};
+            return data.end;
         }
 
         const_iterator end() const noexcept {
@@ -83,11 +81,11 @@ namespace data_struct
         }
 
         std::size_t size() const noexcept {
-            return data.avail - data.begin;
+            return end() - begin();
         }
 
         std::size_t capacity() const noexcept {
-            return data.limit - data.begin;
+            return data.capacity;
         }
 
         bool empty() const noexcept {
@@ -133,35 +131,38 @@ namespace data_struct
 
         void push_back (T const& value) {
             reserve_before_insert();
-            new(data.avail) T {value};
-            ++data.avail;
+            new(end()) T {value};
+            ++data.end;
         }
 
         void pop_back() noexcept {
-            --data.avail;
-            data.avail->~T();
+            --data.end;
+            end()->~T();
         }
 
-        void insert (iterator it, T const& value) {
+        void insert (const_iterator it, T const& value) {
             push_back (T{});
-            shift_right (it, end());
-            *it = value;
+            shift_right (rm_const (it), end());
+            *rm_const (it) = value;
         }
 
-        void erase (iterator it) {
-            shift_left (it, end());
+        void erase (const_iterator it) {
+            shift_left (rm_const (it), end());
             pop_back();
         }
 
     private:
+        static
+        T* rm_const (T const* ptr) noexcept {
+            return const_cast<T*> (ptr);
+        }
+
         void mem_alloc_and_data_init (std::size_t size_, std::size_t capacity_) {        
             auto mem = reinterpret_cast<T*> (
                 ::operator new (sizeof(T) * capacity_)
             );
 
-            data.begin = mem;
-            data.avail = mem + size_;
-            data.limit = mem + capacity_;
+            data = Data {mem, mem + size_, capacity_};
         }
 
         void mem_free (T* ptr) noexcept {
@@ -172,12 +173,11 @@ namespace data_struct
             if (capacity() >= lowerBound)
                 return;
 
-            auto oldBeg = begin();
-            auto oldEnd = end();
+            auto old = data;
             
             mem_alloc_and_data_init (size(), newCapacity);
-            range_init_move (oldBeg, oldEnd, data.begin);
-            mem_free (&*oldBeg);
+            range_init_move (old.begin, old.end, begin());
+            mem_free (old.begin);
         }
 
         void reserve_before_insert() {
@@ -187,8 +187,9 @@ namespace data_struct
     private:
         struct Data {
             T* begin = nullptr;
-            T* avail = nullptr;
-            T* limit = nullptr;
+            T* end = nullptr;
+
+            std::size_t capacity = 0;
         };
 
         Data data{};
