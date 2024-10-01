@@ -64,6 +64,40 @@ namespace data_struct
             *end = std::move (*(end-1));
         }
     }
+
+
+    template <typename Iter, typename T>
+    Iter find (Iter begin, Iter end, T const& value) {
+        while (begin != end) {
+            if (*begin == value)
+                return begin;
+        }
+        return end;
+    }
+
+
+    template <typename Iter, typename Predicate>
+    Iter find_if (Iter begin, Iter end, Predicate pred) {
+        while (begin != end) {
+            if (pred (*begin))
+                return begin;
+            ++begin;
+        }
+        return end;
+    }
+
+
+    template <typename T, typename U>
+    struct Pair {
+        T first;
+        U second;
+    };
+
+
+    template <typename T, typename U>
+    auto make_pair (T const& t, U const& u) {
+        return Pair<T, U> {t, u};
+    }
 }
 
 #endif

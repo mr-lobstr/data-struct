@@ -47,8 +47,10 @@ namespace data_struct
         {}
     
         FList (FList const& rhs) {
+            auto pLast = &prevFirst;
+
             for_each (rhs.begin(), rhs.end(),
-                [pLast = &prevFirst] (auto& value) {
+                [&, this] (auto& value) {
                     push_front (value);
                     pLast = pLast->next;
                 }
@@ -104,6 +106,22 @@ namespace data_struct
             auto oldFirst = get_ptr_node (pPrev->next);
             pPrev->next = oldFirst->next;
             delete (oldFirst);
+        }
+
+        iterator find_prev (T const& value) noexcept {
+            auto it = prev_begin();
+
+            while (next_iter(it) != end()) {
+                if (*next_iter(it) == value)
+                    break;
+                ++it;
+            }
+
+            return it;
+        }
+
+        const_iterator find_prev (T const& value) const noexcept {
+            return find_prev (value);
         }
 
         void pop_front() noexcept {

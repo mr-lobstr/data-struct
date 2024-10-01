@@ -20,6 +20,7 @@ namespace data_struct
         using value_type = typename Types::Value;
         using reference  = typename Types::Reference;
         using pointer    = typename Types::Pointer;
+        using Cont = typename Impl::Container;
 
     public:
         ForwardIterTemplate() noexcept = default;
@@ -29,11 +30,12 @@ namespace data_struct
         Self& operator= (Self const&) noexcept = default;
 
         ForwardIterTemplate(Self&& rhs) noexcept
-            impl (std::exchange (rhs.impl, Impl{}))
+            : impl (std::exchange (rhs.impl, Impl{}))
         {}
 
         Self& operator= (Self&& rhs) noexcept {
             impl = std::exchange (rhs.impl, Impl{});
+            return *this;
         }
 
         ForwardIterTemplate (Impl impl_) noexcept
