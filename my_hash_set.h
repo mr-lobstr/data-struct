@@ -32,14 +32,15 @@ namespace data_struct
             void next() noexcept {               
                 ++prevElemIt;
 
-                if (is_end()) {
-                    while (++bucketIt != endIt and bucketIt->empty())
-                        ;
+                if (not is_end()) 
+                    return;
+                
+                while (++bucketIt != endIt and bucketIt->empty())
+                    ;
 
-                    if (bucketIt != endIt) {
-                        prevElemIt = bucketIt->prev_begin();
-                    }
-                }             
+                if (bucketIt != endIt) {
+                    prevElemIt = bucketIt->prev_begin();
+                }           
             }
 
             auto& get_value() const noexcept {
@@ -145,8 +146,7 @@ namespace data_struct
 
         void erase (T const& value) noexcept {
             if (auto it = find (value); it != end()) {
-                auto bucketIt = it.impl.bucketIt;
-                auto prevIt = it.impl.prevElemIt;
+                auto [bucketIt, _, prevIt] = it.impl;
 
                 bucketIt->erase_after (prevIt);
                 --size_;
@@ -154,26 +154,22 @@ namespace data_struct
         }
 
         void add (T const& value) {
-            if (size() >= buckets_cnt() * maxDepth) {
+            if (size() >= buckets_cnt() * middleMaxDepth) {
                 refill();
             }
 
-            auto pos = find (value);
-            if (pos == end()) {
+            if (auto pos = find (value); pos == end()) {
                 push_to_bucket (value);
             }
         }
 
-        const_iterator find (T const& value) const noexcept {
-            if (empty())
-                return end();
-
-            auto [bucketIt, endIt] = begin_end();
-            bucketIt += bucket_number (value);
-            auto prevElemIt = bucketIt->find_prev (value);
-
-            return IterImpl {bucketIt, endIt, prevElemIt};
+        iterator find (T const& value) noexcept {
+            return find_ (value);
         }
+
+        const_iterator find (T const& value) const noexcept {
+            return find_ (value);
+        };
 
     private:
         std::size_t buckets_cnt() const noexcept {
@@ -201,6 +197,18 @@ namespace data_struct
             };
         }
 
+        auto find_ (T const& value) const noexcept {
+            auto [bucketIt, endIt] = begin_end();
+
+            if (empty())
+                return IterImpl {endIt, endIt, elements_iterator{}};
+
+            bucketIt += bucket_number (value);
+            auto prevElemIt = bucketIt->find_prev (value);
+
+            return IterImpl {bucketIt, endIt, prevElemIt};
+        }
+
         void push_to_bucket (T const& value) {
             auto bucketIt = array.begin() + bucket_number (value);
             bucketIt->push_front (value);
@@ -224,13 +232,19 @@ namespace data_struct
         }
 
     private:
-        static const std::size_t maxDepth = 5;
+        static const std::size_t middleMaxDepth = 5;
         static const std::size_t minBucketCnt = 100;
 
         Array array{};
         Hash hash{};
         std::size_t size_ = 0;
     };
+
+
+    template <typename T, typename Hash>
+    void swap (HashSet<T, Hash>& lhs, HashSet<T, Hash>& rhs) noexcept {
+        lhs.swap (rhs);
+    }
 }
 
 #endif
