@@ -1,7 +1,6 @@
 #ifndef MY_ITERATORS_H_GUARD
 #define MY_ITERATORS_H_GUARD
 
-#include "iterators/just_pointer.h"
 #include "iterators/iterators_general.h"
 #include "iterators/forward_iterator.h"
 #include "iterators/bidirectional_iterator.h"
