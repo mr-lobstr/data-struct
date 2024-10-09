@@ -22,7 +22,7 @@ namespace data_struct
     public:
         struct Inserter {
             void operator= (T const& value) {
-                it =container.insert (it, value);
+                it = container.insert (it, value);
             }
 
             void operator= (T&& value) {
@@ -57,8 +57,7 @@ namespace data_struct
         }
 
         Self operator++ (int i) {
-            ++it;
-            return Self {container, it};
+            return Self {container, it++}; 
         }
     
     private:

@@ -2,15 +2,22 @@
 #define MY_HASH_SET_H_GUARD
 
 #include "dynamic_array.h"
-#include "my_flist.h"
+#include "flist.h"
 
 namespace data_struct
 {
     template <typename T>
     struct DefaultHash;
 
+    template <typename T>
+    struct DefaultEqual {
+        bool operator() (T const& t1, T const& t2) const {
+            return t1 == t2;
+        }
+    };
 
-    template <typename T, typename Hash = DefaultHash<T>>
+
+    template <typename T, typename Hash = DefaultHash<T>, typename Eq = DefaultEqual<T>>
     class HashSet {
         using Bucket = FList<T>;
         using Array  = DynamicArray<Bucket>;

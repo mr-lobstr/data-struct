@@ -12,8 +12,6 @@ namespace data_struct
         using const_iterator = typename List<T>::const_iterator;
 
     public:
-        
-
         auto begin() const noexcept {
             return impl.cbegin();
         }

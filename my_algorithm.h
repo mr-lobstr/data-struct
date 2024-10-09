@@ -56,7 +56,8 @@ namespace algs
     template <typename InputIter, typename OutputIter>
     void copy (InputIter beg, InputIter end, OutputIter out) {
         while (beg != end) {
-            *out++ = *beg++;
+            *out = *beg++;
+            ++out;
         }
     }
 
