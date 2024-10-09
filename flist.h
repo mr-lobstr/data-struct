@@ -219,13 +219,27 @@ namespace data_struct
         void pop_front() noexcept {
             erase_after (prev_begin());
         }
+        
+        template <typename Predicate>
+        iterator find_prev_if (Predicate pred) noexcept {
+            return find_previous_if (pred);
+        }
+
+        template <typename Predicate>
+        const_iterator find_prev_if (Predicate pred) const noexcept {
+            return find_previous_if (pred);
+        }  
 
         iterator find_prev (T const& value) noexcept {
-            return find_previous (value);
+            return find_prev_if ([&] (auto& el) {
+                return value == el;
+            });
         }
 
         const_iterator find_prev (T const& value) const noexcept {
-            return find_previous (value);
+            return find_prev_if ([&] (auto& el) {
+                return value == el;
+            });
         }       
 
     private:
@@ -239,11 +253,12 @@ namespace data_struct
             return static_cast<Node*> (pHead);
         }
 
-        iterator find_previous (T const& value) noexcept {
-            auto it = prev_begin();
+        template <typename Predicate>
+        iterator find_previous_if (Predicate pred) const noexcept {
+            iterator it {no_const (&prevFirst)};
 
             while (next_iter(it) != end()) {
-                if (*next_iter(it) == value)
+                if (pred (*next_iter(it)))
                     break;
                 ++it;
             }

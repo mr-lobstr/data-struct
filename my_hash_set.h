@@ -4,10 +4,69 @@
 #include "dynamic_array.h"
 #include "flist.h"
 
+
+namespace hashset_detail
+{
+    template <typename T, typename C>
+    struct IterImpl {
+        using Container = C;
+        using buckets_iterator = typename C::buckets_iterator;
+        using elements_iterator = typename C::elements_iterator;
+
+
+    public:
+        auto real() const noexcept {
+            return algs::make_pair (bucketIt, prevElemIt);
+        }
+
+        bool equal (IterImpl const& rhs) const noexcept {
+            if (is_end() or rhs.is_end())
+                return is_end() and rhs.is_end();
+                
+            return prevElemIt == rhs.prevElemIt;
+        }
+
+        void next() noexcept {               
+            ++prevElemIt;
+
+            if (not is_end()) 
+                return;
+                
+            while (++bucketIt != endIt and bucketIt->empty())
+                ;
+
+            if (bucketIt != endIt) {
+                prevElemIt = bucketIt->prev_begin();
+            }           
+        }
+
+        auto& get_value() const noexcept {
+            return *elem_it();
+        }
+        
+    private:
+        auto elem_it() const noexcept {
+            return next_iter(prevElemIt);
+        }
+
+        bool is_end() const noexcept {
+            return bucketIt == endIt
+                or elem_it() == bucketIt->end();
+        }
+
+    public:
+        buckets_iterator  bucketIt{};
+        buckets_iterator  endIt{};
+        elements_iterator prevElemIt{};
+    };
+} 
+
+
 namespace data_struct
 {
     template <typename T>
     struct DefaultHash;
+
 
     template <typename T>
     struct DefaultEqual {
@@ -25,54 +84,21 @@ namespace data_struct
         using buckets_iterator  = typename Array::iterator;
         using elements_iterator = typename Bucket::iterator;
 
-        struct IterImpl {
-            using Container = HashSet;
+        using IterImpl = hashset_detail::IterImpl<T, HashSet>;
 
-        public:
-            bool equal (IterImpl const& rhs) const noexcept {
-                if (is_end() or rhs.is_end())
-                    return is_end() and rhs.is_end();
-                
-                return prevElemIt == rhs.prevElemIt;
-            }
+        friend IterImpl;
+        friend BackInserterIterator<T, HashSet>;
 
-            void next() noexcept {               
-                ++prevElemIt;
 
-                if (not is_end()) 
-                    return;
-                
-                while (++bucketIt != endIt and bucketIt->empty())
-                    ;
-
-                if (bucketIt != endIt) {
-                    prevElemIt = bucketIt->prev_begin();
-                }           
-            }
-
-            auto& get_value() const noexcept {
-                return *elem_it();
-            }
-        
-        private:
-            auto elem_it() const noexcept {
-                return next_iter(prevElemIt);
-            }
-
-            bool is_end() const noexcept {
-                return bucketIt == endIt
-                    or elem_it() == bucketIt->end();
-            }
-
-        public:
-            buckets_iterator  bucketIt{};
-            buckets_iterator  endIt{};
-            elements_iterator prevElemIt{};
-        }; 
+        template <typename T1>
+        using EnableIfIsT = std::enable_if_t<
+            std::is_same_v<std::remove_reference<T1>, T>
+         or std::is_constructible_v<T, T1>
+        >;
 
     public:
-        using iterator       = ForwardIterTemplate<T, IterImpl, Mutable_tag>;
-        using const_iterator = ForwardIterTemplate<T, IterImpl, Const_tag>;
+        using iterator       = ForwardIterator<T, IterImpl, Mutable_tag>;
+        using const_iterator = ForwardIterator<T, IterImpl, Const_tag>;
 
     public:
         HashSet() noexcept = default;
@@ -80,15 +106,22 @@ namespace data_struct
 
         HashSet (HashSet&& rhs) noexcept
             : array (std::move (rhs.array))
-            , hash (std::move (rhs.hash))
             , size_ (std::exchange (rhs.size_, 0))
         {}
 
         HashSet (HashSet const& rhs) noexcept
             : array (rhs.array)
-            , hash (rhs.hash)
             , size_ (rhs.size_)
         {}
+
+        template <class Iter, class = EnableIfForward<Iter>>
+        HashSet (Iter beg, Iter end) {
+            algs::copy (beg, end, algs::back_inserter (*this));
+        }
+
+        HashSet (std::initializer_list<T> iList) {
+            algs::copy (iList.begin(), iList.end(), algs::back_inserter (*this));
+        }
 
         HashSet& operator= (HashSet&& rhs)
         {
@@ -112,7 +145,6 @@ namespace data_struct
             using std::swap;
 
             swap (array, rhs.array);
-            swap (hash, rhs.hash);
             swap (size_, rhs.size_);
         }
 
@@ -153,20 +185,21 @@ namespace data_struct
 
         void erase (T const& value) noexcept {
             if (auto it = find (value); it != end()) {
-                auto [bucketIt, _, prevIt] = it.impl;
+                auto [bucketIt, prevIt] = it.real();
 
                 bucketIt->erase_after (prevIt);
                 --size_;
             }
         }
 
-        void add (T const& value) {
+        template <class T1, class = EnableIfIsT<T1>>
+        void add (T1&& value) {
             if (size() >= buckets_cnt() * middleMaxDepth) {
                 refill();
             }
 
             if (auto pos = find (value); pos == end()) {
-                push_to_bucket (value);
+                push_to_bucket (std::forward<T1> (value));
             }
         }
 
@@ -184,18 +217,18 @@ namespace data_struct
         }
 
         std::size_t bucket_number (T const& value) const noexcept {
-            return hash (value) % buckets_cnt();
+            return Hash{} (value) % buckets_cnt();
         }
 
         auto begin_end() const noexcept {
             auto& arr = const_cast<Array&> (array);
-            return make_pair (arr.begin(), arr.end());
+            return algs::make_pair (arr.begin(), arr.end());
         }
 
         auto begin_iter_impl () const noexcept {
             auto [beg, end] = begin_end();
 
-            beg = find_if (beg, end, [] (auto& bucket) {
+            beg = algs::find_if (beg, end, [] (auto& bucket) {
                 return not bucket.empty();
             });
 
@@ -211,14 +244,17 @@ namespace data_struct
                 return IterImpl {endIt, endIt, elements_iterator{}};
 
             bucketIt += bucket_number (value);
-            auto prevElemIt = bucketIt->find_prev (value);
+            auto prevElemIt = bucketIt->find_prev_if ([&] (auto& el) {
+                return Eq{} (value, el);
+            });
 
             return IterImpl {bucketIt, endIt, prevElemIt};
         }
 
-        void push_to_bucket (T const& value) {
+        template <typename T1>
+        void push_to_bucket (T1&& value) {
             auto bucketIt = array.begin() + bucket_number (value);
-            bucketIt->push_front (value);
+            bucketIt->push_front (std::forward<T1> (value));
             ++size_;
         }
 
@@ -231,11 +267,19 @@ namespace data_struct
             HashSet newSet;
             newSet.array.resize (buckets_cnt() * 1.5);
 
-            for_each (begin(), end(), [&] (auto& el) {
+            algs::for_each (begin(), end(), [&] (auto& el) {
                 newSet.push_to_bucket (el);
             });
 
             swap (newSet);
+        }
+
+        void push_back (T const& value) {
+            add (value);
+        }
+
+        void push_back (T&& value) {
+            add (std::move (value));
         }
 
     private:
@@ -243,7 +287,6 @@ namespace data_struct
         static const std::size_t minBucketCnt = 100;
 
         Array array{};
-        Hash hash{};
         std::size_t size_ = 0;
     };
 
