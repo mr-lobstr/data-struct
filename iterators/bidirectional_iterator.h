@@ -1,21 +1,21 @@
-#ifndef BE_ITER_TEMPLATE_H_GUARD
-#define BE_ITER_TEMPLATE_H_GUARD
+#ifndef BIDIRECTIONAL_ITERATOR_TEMPLATE_H_GUARD
+#define BIDIRECTIONAL_ITERATOR_TEMPLATE_H_GUARD
 
-#include "f_iter_template.h"
+#include "forward_iterator.h"
 
 namespace data_struct
 {
     template <typename T, typename Impl, typename Mut>
-    class BidirectIterTemplate
-        : public ForwardIterTemplate<T, Impl, Mut>
+    class BidirectionalIterator
+        : public ForwardIterator<T, Impl, Mut>
     {
-        using Base = ForwardIterTemplate<T, Impl, Mut>;
-        using Self = BidirectIterTemplate;
+        using Base = ForwardIterator<T, Impl, Mut>;
+        using Self = BidirectionalIterator;
 
         friend typename Impl::Container;
 
     public:
-        using iterator_tag = std::bidirectional_iterator_tag;
+        using iterator_category = std::bidirectional_iterator_tag;
         
         using typename Base::difference_type;
         using typename Base::value_type;
@@ -28,25 +28,26 @@ namespace data_struct
         using Base::operator*;
         using Base::operator->;
         using Base::operator++;
+        using Base::real;
 
     public:
-        BidirectIterTemplate() noexcept = default;
+        BidirectionalIterator() = default;
 
-        BidirectIterTemplate (Impl impl_) noexcept
+        BidirectionalIterator (Impl impl_) 
             : Base (impl_)
         {}
 
         template <typename Mut_>
-        BidirectIterTemplate (BidirectIterTemplate<T, Impl, Mut_> const& it) noexcept 
+        BidirectionalIterator (BidirectionalIterator<T, Impl, Mut_> const& it)  
             : Base (it)
         {}
 
-        Self& operator--() noexcept {
+        Self& operator--() {
             impl.prev();
             return *this;
         }
 
-        Self operator-- (int i) noexcept {
+        Self operator-- (int i) {
             auto tmp = *this;
             impl.prev();
             return tmp;

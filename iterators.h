@@ -1,14 +1,18 @@
 #ifndef MY_ITERATORS_H_GUARD
 #define MY_ITERATORS_H_GUARD
 
-#include "iterators/f_iter_template.h"
-#include "iterators/bi_iter_template.h"
-#include "iterators/rand_iter_template.h"
+#include "iterators/just_pointer.h"
+#include "iterators/iterators_general.h"
+#include "iterators/forward_iterator.h"
+#include "iterators/bidirectional_iterator.h"
+#include "iterators/random_iterator.h"
+#include "iterators/back_inserter_irerator.h"
+#include "iterators/inserter_iterator.h"
 
 namespace data_struct
 {
     template <typename T, typename Impl, typename Mut>
-    using BaseContainerIter = ForwardIterTemplate<T, Impl, Mut>;
+    using BaseContainerIter = ForwardIterator<T, Impl, Mut>;
 
 
     template <typename Iter>

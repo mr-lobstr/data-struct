@@ -3,36 +3,116 @@
 
 #include <stdexcept>
 #include <utility>
-#include "my_iterators.h"
+#include "iterators.h"
 #include "my_algorithm.h"
+
+namespace array_detail
+{
+    template <typename T, typename C>
+    struct IterImpl {
+        using Container = C;
+
+    public:
+        IterImpl() noexcept = default;
+        ~IterImpl() noexcept = default;
+        IterImpl (IterImpl const&) noexcept = default;
+        IterImpl& operator= (IterImpl const&) noexcept = default;
+
+        IterImpl (IterImpl&& rhs) noexcept
+            : ptr (std::exchange (rhs.ptr, nullptr))
+        {}
+
+        IterImpl& operator= (IterImpl&& rhs) noexcept {
+            ptr = std::exchange (rhs.ptr, nullptr);
+            return *this;
+        }
+
+        IterImpl (T* ptr_) noexcept
+            : ptr (ptr_)
+        {}
+
+    public:
+        T*& real() const noexcept {
+            return ptr;
+        }
+
+        bool equal (IterImpl const& rhs) const noexcept {
+            return ptr == rhs.ptr; 
+        }
+
+        auto diff (IterImpl const& rhs) const noexcept {
+            return ptr - rhs.ptr; 
+        }
+
+        void plus (std::ptrdiff_t n) noexcept {
+            ptr += n; 
+        }
+
+        void next() noexcept {
+            ++ptr; 
+        }
+
+        void prev() noexcept {
+            --ptr; 
+        }
+
+        T& get_value() const noexcept {
+            return *ptr; 
+        }
+
+    public:
+        mutable T* ptr{};
+    };
+}
 
 namespace data_struct
 {
     template <typename T>
-    class DynamicArray {  
+    class DynamicArray {
+        using IterImpl = array_detail::IterImpl<T, DynamicArray>;
+
     public:
-        using iterator       = T*;
-        using const_iterator = T const*;
+        using iterator       = RandomIterator<T, IterImpl, Mutable_tag>;
+        using const_iterator = RandomIterator<T, IterImpl, Const_tag>;
 
     public:
         DynamicArray() noexcept = default;
 
-        DynamicArray (DynamicArray&& rhs)
-            : data (std::exchange(rhs.data,  Data{}))
+        DynamicArray (DynamicArray&& rhs) noexcept
+            : capacity_ (std::exchange (rhs.capacity_, 0))
+            , begin_ (std::exchange (rhs.begin_, nullptr))
+            , end_ (std::exchange (rhs.end_, nullptr))
         {}
 
-        DynamicArray (DynamicArray const& rhs) {
-            mem_alloc_and_data_init (rhs.size(), rhs.size());
-            range_init_copy (rhs.begin(), rhs.end(), begin());
+        template <class Iter, class = EnableIfForward<Iter>>
+        DynamicArray (Iter beg, Iter end)
+            : DynamicArray ()
+        {
+            algs::copy (beg, end, algs::back_inserter (*this));
         }
 
-        DynamicArray (std::size_t count, T const& value = T()) {
-            mem_alloc_and_data_init (count, count);
-            range_init (begin(), end(), value);
+        DynamicArray (std::initializer_list<T> iList)
+            : DynamicArray (iList.size(), InitTag{})
+        {
+            algs::copy (iList.begin(), iList.end(), algs::back_inserter (*this));
+        }
+
+        DynamicArray (DynamicArray const& rhs)
+            : DynamicArray (rhs.size(), InitTag{})
+        {
+            algs::copy (rhs.begin(), rhs.end(), algs::back_inserter (*this));
+        }
+
+        DynamicArray (std::size_t count, T const& value = T())
+            : DynamicArray (count, InitTag{})
+        {
+            while (count--) {
+                push_back (value);
+            }
         }
 
         DynamicArray& operator= (DynamicArray&& rhs) noexcept {
-            if (this == &rhs) {
+            if (this != &rhs) {
                 auto tmp {std::move (rhs)};
                 swap (tmp);
             }
@@ -40,7 +120,7 @@ namespace data_struct
         }
 
         DynamicArray& operator= (DynamicArray const& rhs) {
-            if (this == &rhs) {
+            if (this != &rhs) {
                 auto tmp {rhs};
                 swap (tmp);
             }
@@ -49,60 +129,31 @@ namespace data_struct
 
         ~DynamicArray() noexcept {
             resize(0);
-            mem_free (begin());
+            mem_free (begin_);
         }
 
-        iterator begin() noexcept {
-            return data.begin;
+        auto begin() noexcept {
+            return iterator {begin_};
         }
 
-        const_iterator cbegin() const noexcept {
-            return data.begin;
+        auto cbegin() const noexcept {
+            return const_iterator {no_const (begin_)};
         }
 
-        const_iterator begin() const noexcept {
+        auto begin() const noexcept {
             return cbegin();
         }
 
-        iterator end() noexcept {
-            return data.end;
+        auto end() noexcept {
+            return iterator {end_};
         }
 
-        const_iterator cend() const noexcept {
-            return data.end;
+        auto cend() const noexcept {
+            return const_iterator {no_const (end_)};
         }
 
-        const_iterator end() const noexcept {
+        auto end() const noexcept {
             return cend();
-        }
-
-        void swap (DynamicArray& rhs) noexcept {
-            std::swap (data, rhs.data);
-        }
-
-        std::size_t size() const noexcept {
-            return end() - begin();
-        }
-
-        std::size_t capacity() const noexcept {
-            return data.capacity;
-        }
-
-        bool empty() const noexcept {
-            return size() == 0;
-        }
-
-        void reserve (std::size_t newCapacity) {
-            realloc_if_capacity_less (newCapacity, newCapacity);
-        }
-
-        void resize (std::size_t newSize) {
-            reserve (newSize);
-        
-            while (size() != newSize) {
-                size() < newSize ? push_back (T{})
-                                 : pop_back();
-            }
         }
 
         T& operator[] (std::size_t ind) noexcept {
@@ -113,6 +164,14 @@ namespace data_struct
             return begin()[ind];
         }
 
+        T& front () noexcept {
+            return *begin();
+        }
+
+        T const& front () const noexcept {
+            return *begin();
+        }
+
         T& back () noexcept {
             return *--end();
         }
@@ -121,40 +180,105 @@ namespace data_struct
             return *--end();
         }
 
-        void push_back (T const& value) {
+        void swap (DynamicArray& rhs) noexcept {
+            std::swap (capacity_, rhs.capacity_);
+            std::swap (begin_, rhs.begin_);
+            std::swap (end_, rhs.end_);
+        }
+
+        std::size_t size() const noexcept {
+            return end() - begin();
+        }
+
+        std::size_t capacity() const noexcept {
+            return capacity_;
+        }
+
+        bool empty() const noexcept {
+            return size() == 0;
+        }
+
+        template <typename... Ts>
+        void emplace_back (Ts&&... args) {
             reserve_before_insert();
-            new(end()) T {value};
-            ++data.end;
+            new(end_) T {std::forward<Ts> (args)...};
+            ++end_;
+        }
+
+        void push_back (T const& value) {
+            emplace_back (value);
+        }
+
+        void push_back (T&& value) {
+            emplace_back (std::move (value));
+        }
+
+        template <typename... Ts>
+        iterator emplace (const_iterator it, Ts&&... args) {
+            auto diff = it - cbegin();
+            push_back (std::move (back()));
+            auto saveIt = begin() + diff;
+
+            algs::shift_right (saveIt, end());
+            new (saveIt.real()) T {std::forward<Ts> (args)...};
+
+            return saveIt;
+        }
+
+        iterator insert (const_iterator it, T const& value) {
+            return emplace (it, value);
+        }
+
+        iterator insert (const_iterator it, T&& value) {
+            return emplace (it, std::move (value));
         }
 
         void pop_back() noexcept {
-            --data.end;
-            end()->~T();
-        }
-
-        void insert (const_iterator it, T const& value) {
-            push_back (T{});
-            shift_right (rm_const (it), end());
-            *rm_const (it) = value;
+            --end_;
+            end_->~T();
         }
 
         void erase (const_iterator it) {
-            shift_left (rm_const (it), end());
+            auto noConstIt = iterator (it.real());
+            algs::shift_left (noConstIt, end());
             pop_back();
         }
 
-    private:
-        static
-        T* rm_const (T const* ptr) noexcept {
-            return const_cast<T*> (ptr);
+        void reserve (std::size_t newCapacity) {
+            realloc_if_capacity_less (newCapacity, newCapacity);
         }
 
-        void mem_alloc_and_data_init (std::size_t size_, std::size_t capacity_) {        
-            auto mem = reinterpret_cast<T*> (
-                ::operator new (sizeof(T) * capacity_)
-            );
+        void resize (std::size_t newSize) {
+            reserve (newSize);
+        
+            while (size() != newSize) {
+                size() < newSize ? push_back (T{}) : pop_back();
+            }
+        }   
 
-            data = Data {mem, mem + size_, capacity_};
+    private:
+        struct InitTag{};
+        struct MoveInitTag{};
+        
+        DynamicArray (std::size_t memSize, InitTag _)
+            : capacity_ (memSize)
+            , begin_ (mem_alloc (memSize))
+            , end_ (begin_)
+        {}
+
+        DynamicArray (iterator beg, iterator end, std::size_t memSize, MoveInitTag _)
+            : DynamicArray (memSize, InitTag{})
+        {
+            algs::move (beg, end, algs::back_inserter (*this));
+        }
+
+        T* mem_alloc (std::size_t count) {
+            if (count == 0)
+                return nullptr;
+
+            return reinterpret_cast<T*> (
+                ::operator new (sizeof(T) * count)
+            );
         }
 
         void mem_free (T* ptr) noexcept {
@@ -165,27 +289,30 @@ namespace data_struct
             if (capacity() >= lowerBound)
                 return;
 
-            auto old = data;
-            
-            mem_alloc_and_data_init (size(), newCapacity);
-            range_init_move (old.begin, old.end, begin());
-            mem_free (old.begin);
+            DynamicArray tmp (begin(), end(), newCapacity, MoveInitTag{});
+            swap (tmp);
         }
 
-        void reserve_before_insert() {
-            realloc_if_capacity_less(size() + 1, size() * 2);
+        void reserve_before_insert () {
+            auto memSize = empty() ? minCapacity : size() * 2;
+            realloc_if_capacity_less (size() + 1, memSize);
+        }
+
+        static
+        T* no_const (T const* ptr) noexcept {
+            return const_cast<T*> (ptr);
         }
 
     private:
-        struct Data {
-            T* begin = nullptr;
-            T* end = nullptr;
+        static const
+        std::size_t minCapacity = 100;
 
-            std::size_t capacity = 0;
-        };
+        std::size_t capacity_ = 0;
 
-        Data data{};
+        T* begin_ = nullptr;
+        T* end_ = nullptr;
     };
+
 
     template <typename T>
     void swap (DynamicArray<T>& lhs, DynamicArray<T>& rhs)
