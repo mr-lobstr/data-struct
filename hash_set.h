@@ -65,7 +65,7 @@ namespace hashset_detail
 namespace data_struct
 {
     template <typename T>
-    struct DefaultHash;
+    struct Hasher;
 
 
     template <typename T>
@@ -76,7 +76,7 @@ namespace data_struct
     };
 
 
-    template <typename T, typename Hash = DefaultHash<T>, typename Eq = DefaultEqual<T>>
+    template <typename T, typename Hash = Hasher<T>, typename Eq = DefaultEqual<T>>
     class HashSet {
         using Bucket = FList<T>;
         using Array  = DynamicArray<Bucket>;
@@ -85,9 +85,10 @@ namespace data_struct
         using elements_iterator = typename Bucket::iterator;
 
         using IterImpl = hashset_detail::IterImpl<T, HashSet>;
+        using BackIns = BackInserterIterator<T, HashSet>;
 
         friend IterImpl;
-        friend BackInserterIterator<T, HashSet>;
+        friend BackIns;
 
 
         template <typename T1>
@@ -120,7 +121,7 @@ namespace data_struct
         }
 
         HashSet (std::initializer_list<T> iList) {
-            algs::copy (iList.begin(), iList.end(), algs::back_inserter (*this));
+            algs::copy (iList.begin(), iList.end(), BackIns (*this));
         }
 
         HashSet& operator= (HashSet&& rhs)

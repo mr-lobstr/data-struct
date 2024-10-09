@@ -209,7 +209,7 @@ namespace data_struct
             newNode->bind();
             ++size_;
 
-            return iterator {it.real()};
+            return iterator {it.real()->prev};
         }
 
         iterator insert (const_iterator it, T&& value) {

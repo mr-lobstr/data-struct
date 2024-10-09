@@ -57,7 +57,7 @@ namespace data_struct
         }
 
         Self operator++ (int i) {
-            return Self {container, it++}; 
+            return Self {container, it}; 
         }
     
     private:
