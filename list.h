@@ -159,7 +159,7 @@ namespace data_struct
             set_end_head (rhs.empty(), rhs.endHead);
         }
 
-        auto begin() noexcept {
+        iterator begin() noexcept {
             return iterator {endHead.next};
         }
 
